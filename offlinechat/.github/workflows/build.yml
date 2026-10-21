@@ -1,0 +1,119 @@
+name: Windows release
+
+on:
+  push:
+    branches: [offlinechat-build]
+    paths:
+      - offlinechat/**
+      - .github/workflows/build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    if: github.ref == 'refs/heads/offlinechat-build'
+    runs-on: windows-2022
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out the source revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install the pinned Flutter SDK
+        run: |
+          $sdk = Join-Path $env:RUNNER_TEMP 'flutter'
+          git clone --depth 1 --branch 3.35.7 https://github.com/flutter/flutter.git $sdk
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter SDK checkout failed.' }
+          $revision = git -C $sdk rev-parse HEAD
+          if ($LASTEXITCODE -ne 0 -or $revision -ne 'adc901062556672b4138e18a4dc62a4be8f4b3c2') {
+            throw 'Flutter SDK revision does not match the pinned 3.35.7 release.'
+          }
+          (Join-Path $sdk 'bin') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "CI=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "FLUTTER_SUPPRESS_ANALYTICS=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Check Windows build tools
+        run: |
+          flutter --version
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter SDK initialization failed.' }
+          flutter doctor -v
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter doctor failed.' }
+
+      - name: Analyze, test, build, and package Windows x64
+        working-directory: offlinechat
+        run: |
+          ./scripts/build_windows.ps1 -OutputDirectory (Join-Path $env:GITHUB_WORKSPACE 'builds') -SmokeTest
+          if (!(Test-Path '../builds/OfflineChat-Windows-x64.zip')) { throw 'Windows ZIP was not produced.' }
+          $report = @"
+          OfflineChat Windows x64 release build
+          Source commit: $env:GITHUB_SHA
+          Workflow run: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
+          Flutter: 3.35.7
+          Runner: windows-2022
+          Validation: analyzer, automated tests, release compile, package checks, process launch smoke test.
+          Physical Bluetooth discovery and delivery remain untested by this hosted runner.
+          Extract the complete ZIP and run offlinechat.exe; keep its DLLs and data directory together.
+          "@
+          [IO.File]::WriteAllText((Join-Path $env:GITHUB_WORKSPACE 'builds/OfflineChat-Windows-build.txt'), $report, [Text.UTF8Encoding]::new($false))
+
+      - name: Retain the validated Windows download
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: OfflineChat-Windows-x64
+          path: |
+            builds/OfflineChat-Windows-x64.zip
+            builds/OfflineChat-Windows-x64.zip.sha256
+            builds/OfflineChat-Windows-build.txt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Publish the ZIP on the downloads branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- builds/OfflineChat-Windows-x64.zip builds/OfflineChat-Windows-x64.zip.sha256 builds/OfflineChat-Windows-build.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Could not stage Windows download files.' }
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          if ($LASTEXITCODE -ne 1) { throw 'Could not inspect the staged download files.' }
+          git commit -m "Publish Windows x64 build for $($env:GITHUB_SHA.Substring(0, 7))"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not commit Windows download files.' }
+          $builtTree = git rev-parse "${env:GITHUB_SHA}:offlinechat"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not identify the built app source tree.' }
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            git fetch origin offlinechat-build
+            if ($LASTEXITCODE -ne 0) { throw 'Could not refresh the downloads branch.' }
+            $currentTree = git rev-parse 'origin/offlinechat-build:offlinechat'
+            if ($LASTEXITCODE -ne 0 -or $currentTree -ne $builtTree) {
+              throw 'Newer app source exists; refusing to publish a stale Windows build.'
+            }
+            git rebase origin/offlinechat-build
+            if ($LASTEXITCODE -ne 0) {
+              git rebase --abort
+              throw 'The downloads branch changed with conflicting files; no force push was attempted.'
+            }
+            git push origin HEAD:refs/heads/offlinechat-build
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -eq 3) { throw 'Could not publish Windows downloads after three attempts.' }
+            Start-Sleep -Seconds 2
+          }
+          @"
+          Windows ZIP built and published: https://github.com/$env:GITHUB_REPOSITORY/tree/offlinechat-build/builds
+
+          Automated checks and the process launch smoke test passed. Physical BLE interoperability still needs device testing.
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
