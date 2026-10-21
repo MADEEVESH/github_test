@@ -1,0 +1,196 @@
+Source commit: f248528edc200033ad225ada9727cd4101e918cc
+Workflow run: https://github.com/MADEEVESH/github_test/actions/runs/39563321553
+SDK initialization
+Checking Dart SDK version... 
+Downloading Dart SDK from Flutter engine ... 
+Expanding downloaded archive with 7z...
+Building flutter tool... 
+Running pub upgrade... 
+Resolving dependencies...
+Downloading packages...
+Got dependencies.
+Flutter 3.35.7 • channel [user-branch] • unknown source
+Framework • revision adc9010625 (1 year ago) • 2025-10-21 14:16:03 -0400
+Engine • hash 6b24e1b529bc46df7ff397667502719a2a8b6b72 (revision 035316565a) (11 months ago) • 2025-10-21 14:28:01.000Z
+Tools • Dart 3.9.2 • DevTools 2.48.0
+Downloading Material fonts...                                      284ms
+Downloading Gradle Wrapper...                                        9ms
+Downloading package sky_engine...                                   87ms
+Downloading package flutter_gpu...                                   7ms
+Downloading flutter_patched_sdk tools...                           188ms
+Downloading flutter_patched_sdk_product tools...                   174ms
+Downloading windows-x64 tools...                                 1,176ms
+Downloading windows-x64/font-subset tools...                        76ms
+[!] Flutter (Channel [user-branch], 3.35.7, on Microsoft Windows [Version 10.0.20348.5622], locale en-US) [2.0s]
+    ! Flutter version 3.35.7 on channel [user-branch] at D:\a\_temp\flutter
+      Currently on an unknown channel. Run `flutter channel` to switch to an official channel.
+      If that doesn't fix the issue, reinstall Flutter by following instructions at https://flutter.dev/setup.
+    ! Upstream repository unknown source is not a standard remote.
+      Set environment variable "FLUTTER_GIT_URL" to unknown source to dismiss this error.
+    • Framework revision adc9010625 (1 year ago), 2025-10-21 14:16:03 -0400
+    • Engine revision 035316565a
+    • Dart version 3.9.2
+    • DevTools version 2.48.0
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, enable-lldb-debugging
+    • If those were intentional, you can disregard the above warnings; however it is recommended to use "git" directly to perform update checks and upgrades.
+
+[√] Windows Version (Server 2022 Datacenter 64-bit, 21H2, 2009) [15.1s]
+
+[!] Android toolchain - develop for Android devices (Android SDK version 37.0.0) [21.7s]
+    • Android SDK at C:\Android\android-sdk
+    • Emulator version 37.2.12.0 (build_id 16428233) (CL:N/A)
+    • Platform android-37.2-beta3, build-tools 37.0.0
+    • ANDROID_HOME = C:\Android\android-sdk
+    • ANDROID_SDK_ROOT = C:\Android\android-sdk
+    • Java binary at: C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk\8.0.504-1\x64\bin\java
+      This JDK is specified by the JAVA_HOME environment variable.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    X Could not determine java version
+    ! Some Android licenses not accepted. To resolve this, run: flutter doctor --android-licenses
+
+[√] Chrome - develop for the web [624ms]
+    • Chrome at C:\Program Files\Google\Chrome\Application\chrome.exe
+
+[√] Visual Studio - develop Windows apps (Visual Studio Enterprise 2022 17.14.41 (September 2026)) [623ms]
+    • Visual Studio at C:\Program Files\Microsoft Visual Studio\2022\Enterprise
+    • Visual Studio Enterprise 2022 version 17.14.37710.0
+    • Windows 10 SDK version 10.0.26100.0
+
+[!] Android Studio (not installed) [7ms]
+    • Android Studio not found; download from https://developer.android.com/studio/index.html
+      (or visit https://flutter.dev/to/windows-android-setup for detailed instructions).
+
+[√] Connected device (2 available) [6.2s]
+    • Windows (desktop) • windows • windows-x64    • Microsoft Windows [Version 10.0.20348.5622]
+    • Chrome (web)      • chrome  • web-javascript • unknown
+
+[√] Network resources [364ms]
+    • All expected network resources are available.
+
+! Doctor found issues in 3 categories.
+
+APPLICATION BUILD
+Source commit: f248528edc200033ad225ada9727cd4101e918cc
+Workflow run: https://github.com/MADEEVESH/github_test/actions/runs/39563321553
+Resolving dependencies...
+Downloading packages...
+  characters 1.4.0 (1.4.1 available)
+  clock 1.1.2 (1.1.3 available)
+  matcher 0.12.17 (0.12.20 available)
+  material_color_utilities 0.11.1 (0.13.1 available)
+  meta 1.16.0 (1.19.0 available)
+  path_provider_linux 2.2.1 (2.2.2 available)
+  path_provider_platform_interface 2.1.2 (2.1.3 available)
+  platform 3.1.6 (3.2.0 available)
+  shared_preferences 2.5.5 (2.5.6 available)
+  shared_preferences_android 2.4.23 (2.5.1 available)
+  shared_preferences_foundation 2.5.6 (2.6.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.6 (0.7.15 available)
+  vector_math 2.2.0 (2.4.3 available)
+Got dependencies!
+14 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Resolving dependencies...
+Downloading packages...
+  characters 1.4.0 (1.4.1 available)
+  clock 1.1.2 (1.1.3 available)
+  matcher 0.12.17 (0.12.20 available)
+  material_color_utilities 0.11.1 (0.13.1 available)
+  meta 1.16.0 (1.19.0 available)
+  path_provider_linux 2.2.1 (2.2.2 available)
+  path_provider_platform_interface 2.1.2 (2.1.3 available)
+  platform 3.1.6 (3.2.0 available)
+  shared_preferences 2.5.5 (2.5.6 available)
+  shared_preferences_android 2.4.23 (2.5.1 available)
+  shared_preferences_foundation 2.5.6 (2.6.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.6 (0.7.15 available)
+  vector_math 2.2.0 (2.4.3 available)
+Got dependencies!
+14 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing offlinechat...                                        
+No issues found! (ran in 10.5s)
+Resolving dependencies...
+Downloading packages...
+  characters 1.4.0 (1.4.1 available)
+  clock 1.1.2 (1.1.3 available)
+  matcher 0.12.17 (0.12.20 available)
+  material_color_utilities 0.11.1 (0.13.1 available)
+  meta 1.16.0 (1.19.0 available)
+  path_provider_linux 2.2.1 (2.2.2 available)
+  path_provider_platform_interface 2.1.2 (2.1.3 available)
+  platform 3.1.6 (3.2.0 available)
+  shared_preferences 2.5.5 (2.5.6 available)
+  shared_preferences_android 2.4.23 (2.5.1 available)
+  shared_preferences_foundation 2.5.6 (2.6.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.6 (0.7.15 available)
+  vector_math 2.2.0 (2.4.3 available)
+Got dependencies!
+14 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: restores nickname/history and persists incoming text with an ACK
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: joins the advertised service and rejects notifications from other routes
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: joining failure releases the native connection and subscriptions
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: disconnect resets the peer and invalidates queued host fragments
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: client link loss resets the displayed peer
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: dispose stops hosting and cancels all platform event subscriptions
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: dispose disconnects a joined client and stops scanning
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: dispose during permission lookup prevents a later native start
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: dispose waits out an in-flight native start before stopping it
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: pending restore does not notify or mutate a disposed controller
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: Windows uses its own default nickname and keeps a saved display name
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: Windows discovery checks the radio even when permission is granted
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: Windows discovery rechecks the radio after enabling Bluetooth
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: Windows host permission denial names the Windows location settings
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: Windows hosting checks its own radio before advertising
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: Windows hosting failure explains the hardware requirement and join option
+✅ D:/a/github_test/github_test/offlinechat/test/ble_chat_controller_test.dart: Windows hosting retains the Android-compatible framing and receipts
+✅ D:/a/github_test/github_test/offlinechat/test/app_test.dart: restores the nickname and keeps messaging disabled until connected
+✅ D:/a/github_test/github_test/offlinechat/test/app_test.dart: Windows shows device controls and a platform-appropriate name
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: fragments and reassembles a Unicode chat message
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: ignores a continuation without a start
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: each frame fits the minimum BLE MTU and has correct boundary flags
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: single-packet messages carry both boundary flags
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: enforces the byte limit including multibyte Unicode
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: a new start discards an incomplete previous message
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: explicit reset drops unfinished data
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: malformed packets reset assembly and allow the next valid message
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: oversized incoming assembly is discarded
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: invalid UTF-8, invalid JSON and non-object JSON are discarded
+✅ D:/a/github_test/github_test/offlinechat/test/ble_protocol_test.dart: consecutive messages do not share an assembly buffer
+✅ D:/a/github_test/github_test/offlinechat/test/app_test.dart: restores a local conversation and clears it from persistent storage
+
+🎉 31 tests passed.
+Downloading windows-x64-debug/windows-x64-flutter tools...          3.4s
+Downloading windows-x64/flutter-cpp-client-wrapper tools...         59ms
+Downloading windows-x64-profile/windows-x64-flutter tools...      2,477ms
+Downloading windows-x64-release/windows-x64-flutter tools...      2,277ms
+Resolving dependencies...
+Downloading packages...
+  characters 1.4.0 (1.4.1 available)
+  clock 1.1.2 (1.1.3 available)
+  matcher 0.12.17 (0.12.20 available)
+  material_color_utilities 0.11.1 (0.13.1 available)
+  meta 1.16.0 (1.19.0 available)
+  path_provider_linux 2.2.1 (2.2.2 available)
+  path_provider_platform_interface 2.1.2 (2.1.3 available)
+  platform 3.1.6 (3.2.0 available)
+  shared_preferences 2.5.5 (2.5.6 available)
+  shared_preferences_android 2.4.23 (2.5.1 available)
+  shared_preferences_foundation 2.5.6 (2.6.0 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  test_api 0.7.6 (0.7.15 available)
+  vector_math 2.2.0 (2.4.3 available)
+Got dependencies!
+14 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Building Windows application...                                   104.8s
+√ Built build\windows\x64\runner\Release\offlinechat.exe
+Packaged Windows app remained running during the launch smoke test.
+Windows package: D:\a\github_test\github_test\builds\OfflineChat-Windows-x64.zip
+SHA256: eaf44b9955b4deae87d2e47f617113ecc4ff5dd0a2757b71461b43fe6e443708
+Extract the complete ZIP and run offlinechat.exe. BLE transport still needs physical-device validation.
