@@ -1,97 +1,113 @@
-# OfflineChat
+> **Unfinished Mesh v2 checkpoint.** This snapshot does not build and has no verified mesh features. Read [CHECKPOINT_STATUS.md](CHECKPOINT_STATUS.md) before resuming.
 
-An Android and Windows app for a foreground, two-device chat over Bluetooth
-Low Energy. One device hosts; the other scans and joins. Text, display names
-and delivery acknowledgments travel over BLE. Nicknames and the latest 200
-messages are stored locally. No server or internet connection is used for chat.
+# OfflineChat Mesh v2
 
-## Android build
+Android-first, BLE-only messaging with local cryptographic identities,
+verified contacts and persistent relay queues. The v2 upgrade is experimental.
+Read [BUILD_REPORT.md](BUILD_REPORT.md) for checks actually executed and
+[limitations](docs/MESH_LIMITATIONS.md) for unresolved and hardware-only checks.
+A successful build is not evidence that three real phones can relay messages.
 
-Use Flutter 3.35.7, Java 17 or 21 and Android SDK platform 36. The app requires
-Android 7.0 (API 24) or newer. Dependency downloads need internet access on the
-development machine.
+The Android mesh and the retained Windows v0.2 direct-chat app are different
+protocols. The Windows app remains available for its original direct-chat
+workflow; it does not join the encrypted Android v2 mesh. Earlier v0.1/v0.2
+Android APKs also do not implement the v2 protocol.
+
+## Android setup
+
+The v2 Android target is Android 10 / API 29 or later, compile/target SDK 36.
+Use Flutter 3.35.7, Dart 3.9.2, Java 17 or 21, and the Android SDK/NDK reported
+by `flutter doctor -v`. Generated Android scaffolding and the dependency lockfile
+are included. Development dependency downloads need internet access; installed
+mesh messaging uses Bluetooth only and has no backend, account or cloud service.
+
+From this project's directory:
 
 ```sh
-flutter pub get
+flutter pub get --enforce-lockfile
 flutter analyze
 flutter test
-flutter build apk --release
+cd android
+./gradlew :app:testDebugUnitTest
+cd ..
+flutter build apk --debug
 ```
 
-The APK is written to `build/app/outputs/flutter-apk/app-release.apk`.
-The generated Flutter release configuration uses the development signing key
-for local installation. Configure your own release signing before distributing
-through an app store; keep signing keys and passwords outside the source tree.
+On Windows use `gradlew.bat` instead of `./gradlew`. The debug APK is
+`build/app/outputs/flutter-apk/app-debug.apk`. Install that same APK on each
+test phone. `flutter run` is also available with a USB-debugging device attached.
+Configure a separate release signing key before distribution; do not commit
+private keys or signing passwords.
 
-## Windows download and build
+Native instrumentation tests, when a compatible Android device or emulator is
+attached, run with:
 
-Use Windows 10 version 1809 or later, or Windows 11, x64, with a BLE-capable Bluetooth adapter. Host
-mode additionally needs Bluetooth peripheral/advertising support from the
-adapter and its driver. If hosting fails, host on the Android phone and use
-**Find devices** on Windows instead.
+```sh
+cd android
+./gradlew :app:connectedDebugAndroidTest
+```
 
-Download `builds/OfflineChat-Windows-x64.zip` from the `offlinechat-build`
-branch on GitHub. Extract the complete folder, then run `offlinechat.exe`.
-Keep the executable, DLLs and `data` directory together. The ZIP includes
-the Visual C++ runtime DLLs; Flutter and Visual Studio are not required to run
-the packaged app. This portable test build is not code-signed.
+An emulator can exercise Android database/bridge behavior. It does not establish
+BLE advertising, concurrent central/peripheral operation or radio range.
 
-To build locally, install Flutter 3.35.7 and Visual Studio 2022 with **Desktop
-development with C++** and a Windows 10/11 SDK. Run from PowerShell:
+## First use on Android
+
+1. Create a local identity with a display name. Keep the same installation for
+   continuity; loss of the AndroidKeyStore key can make encrypted local data
+   unrecoverable.
+2. Exchange identity QR codes with the intended contact in person, or through
+   another trusted channel. Inspect the displayed fingerprint and explicitly
+   confirm the contact. A QR self-signature proves key ownership, not a person's
+   real-world identity.
+3. Open **Mesh** and start the mesh through the user-visible control. Grant the
+   Bluetooth permissions required by that Android version. API 29/30 also need
+   fine-location permission and Location Services for discovery. API 31+ uses
+   Nearby Devices permissions. Notification permission is separate on API 33+.
+4. Check real capability, advertising, scanning and foreground-service state.
+   A foreground notification alone is not proof of a working BLE connection.
+5. Use **Nearby** for compatible peers and **Chats** for verified contacts.
+   **Settings** controls relay participation, TTL, hop budget and queue storage.
+
+Default limits are eight hops, a 24-hour message TTL, 1024 UTF-8 plaintext bytes
+per message and a 25 MiB relay queue. A multibyte emoji can use more than one
+byte. Custody acknowledgment can advance a message to **Relayed**; only a valid
+receipt authenticated as the intended recipient can advance it to **Delivered**.
+**Expired** means the message's permitted lifetime has ended.
+
+Keep the phone awake during initial diagnostics. Android may restrict or kill
+work despite a connected-device foreground service. Force-stop terminates the
+app, and the app does not promise delivery while force-stopped. Restart through
+the UI before resuming an interrupted physical test.
+
+## Architecture and tests
+
+- [Architecture and wire/security boundaries](docs/MESH_ARCHITECTURE.md).
+- [Three-phone and delayed-encounter procedures](docs/PHYSICAL_DEVICE_TEST_PLAN.md).
+- [Limitations and requirement status](docs/MESH_LIMITATIONS.md).
+- [Executed build/test evidence](BUILD_REPORT.md).
+
+Flutter/Riverpod provides Chats, Nearby, Mesh and Settings. The Android method
+and event channels connect the UI to native Kotlin crypto, routing, SQLite and
+BLE components. The older Dart BLE controller and plugin dependencies remain
+for the Windows direct-chat workflow.
+
+## Retained Windows v0.2 app
+
+The existing portable Windows x64 ZIP is the unencrypted, foreground,
+single-peer direct-chat prototype. It can communicate with the old Android
+v0.2 application; it cannot exchange v2 encrypted mesh envelopes. It must not
+be described as providing end-to-end encryption, routing or store-and-forward.
+
+For that legacy workflow use Windows 10 version 1809 or later or Windows 11,
+with a BLE-capable adapter. Extract the complete ZIP and run `offlinechat.exe`
+with its DLLs and `data` folder. Building it requires Visual Studio 2022 with
+Desktop development with C++, a Windows SDK, and Flutter 3.35.7:
 
 ```powershell
-flutter doctor -v
 .\scripts\build_windows.ps1 -SmokeTest
 ```
 
-The script analyzes and tests the app, builds Windows x64, includes the Visual
-C++ runtime, checks the complete package, and writes the ZIP and SHA-256 to
-`dist`. The optional smoke test launches the packaged app without connecting
-to Bluetooth hardware.
-
-The repository's `Windows release` GitHub Actions workflow builds on Windows
-and publishes the same ZIP under `builds` on `offlinechat-build`. A successful
-workflow is required before treating a Windows ZIP as available. In a full
-repository checkout the app is in `offlinechat/`; the active workflow is at
-repository-root `.github/workflows/build.yml`.
-
-## Try it on two devices
-
-1. Install the APK on Android, or extract the Windows ZIP on a PC. Use two
-   physical devices; Android-to-Windows uses the same BLE wire format as
-   Android-to-Android. The host must support BLE advertising/GATT peripheral mode.
-2. Enable Bluetooth on both devices. Android needs Nearby Devices permission;
-   Android 11 and older may also need location permission and Location Services
-   for scanning. Windows hosting uses the peripheral plugin's Location access
-   permission check, so enable Location access for desktop apps if requested.
-3. Open OfflineChat on both devices and use the pencil button to set names.
-4. Tap **Host** on one device and **Find devices** on the other. Select the host.
-5. Keep both apps visible. Send text in both directions and check that each
-   outgoing message changes to **delivered** after the receiver acknowledges it.
-6. Test emoji and a 200-character message, then Stop and reconnect. Restart the
-   app to check that local history remains available.
-
-Wi-Fi and mobile data may be disabled during these tests. BLE transport still
-requires physical-device validation; a successful build and automated tests do
-not establish radio compatibility or delivery on real phones.
-
-## Scope
-
-This is a single-peer prototype. It has no application-layer encryption,
-authenticated pairing, automatic reconnect, background delivery, retry protocol
-or per-contact histories. Local preferences are not encrypted. Use it for
-non-sensitive test messages. The original upload's architecture and device
-troubleshooting notes are preserved in `UPLOAD_README.md` as reference material.
-
-## Code
-
-- `lib/main.dart`: Material 3 chat interface.
-- `lib/ble_chat_controller.dart`: BLE roles, lifecycle, receipts and persistence.
-- `lib/ble_protocol.dart`: bounded JSON fragmentation and reassembly.
-- `lib/chat_message.dart`: stored message model.
-- `test/`: framing, controller and UI tests.
-
-Generated Android scaffolding is included, so the app can be built directly
-without running the setup scripts from the original ZIP. Windows runner and
-CMake files are also included in `windows/`. `scripts/build_windows.ps1`
-produces a complete portable Windows package.
+Only a successful Windows build for the selected source revision establishes a
+new Windows package. The earlier successful Windows v0.2 build does not validate
+new Android mesh code. The original upload's notes are retained as historical
+reference in `UPLOAD_README.md`; this README describes the current target.

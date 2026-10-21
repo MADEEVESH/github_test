@@ -1,39 +1,47 @@
-# Build validation
+> **Unfinished Mesh v2 checkpoint.** This snapshot does not build and has no verified mesh features. Read [CHECKPOINT_STATUS.md](CHECKPOINT_STATUS.md) before resuming.
 
-OfflineChat 0.2.0+2 targets Android and Windows x64 and retains the original
-BLE framing format so both platforms can communicate.
+# Build and test evidence
 
-## Local validation
+## Mesh v2 upgrade
 
-- Flutter 3.35.7 / Dart 3.9.2.
-- `flutter analyze`: no issues found.
-- `flutter test`: 31 passed, none failed or skipped (11 protocol, 17 controller,
-  3 widget tests). Includes Windows radio/permission behavior and Windows UI.
-- `flutter build apk --release`: passed with Temurin JDK 21.0.12.1+1,
-  Gradle 8.12, Android Gradle plugin 8.9.1, Kotlin 2.1.0, target SDK 36,
-  minimum SDK 24. Android remains supported.
-- Windows packaging script and workflow PowerShell blocks parsed successfully.
+The v2 implementation is being integrated. The commands below are required
+checks, not completed results at this initial documentation stage. Replace
+Pending only after the selected source executes the command successfully.
 
-The Android APK is development-signed for sideload testing. The source archive
-does not include signing keys. App-store distribution needs a release key.
+| Check | Result | What it establishes |
+| --- | --- | --- |
+| `flutter analyze` | Pending v2 run | Dart static analysis |
+| `flutter test` | Pending v2 run | Executed Dart/widget suite, with counts recorded separately |
+| `./gradlew :app:testDebugUnitTest` | Pending v2 run | Native JVM tests actually selected by Gradle |
+| `flutter build apk --debug` | Pending v2 run | Android Kotlin/Dart/manifest/resources compile and APK packaging |
+| APK manifest/signature/ZIP checks | Pending v2 run | Packaged permissions, signing and artifact integrity |
+| `./gradlew :app:assembleDebugAndroidTest` | Pending v2 run | Instrumentation test APK compilation only |
+| `./gradlew :app:connectedDebugAndroidTest` | Not run | Requires a supported connected Android target; not inferred from compilation |
+| Three-phone A→B→C | Not run | Real isolated multi-hop, recipient decryption and receipt return |
+| Delayed-contact restart test | Not run | Real persisted custody across disconnected encounters/restarts |
+| Background/permission/battery matrix | Not run | Actual Android service and hardware behavior |
 
-## Native Windows validation
+Crypto/router unit tests may simulate a topology using in-memory transport or
+repositories. Those are tests of the implementation; production code must use
+real BLE callbacks. Such tests must never be reported as physical Bluetooth
+delivery. Device records belong in `docs/PHYSICAL_DEVICE_TEST_PLAN.md`.
 
-Linux cannot compile Flutter's Windows runner. The `Windows release` workflow
-on the `offlinechat-build` branch builds with Windows 2022 / Visual Studio 2022,
-runs analysis and tests, checks the x64 PE executable, bundles the complete
-Flutter output and Microsoft VC143 runtime, and runs a process launch smoke
-test before publishing `builds/OfflineChat-Windows-x64.zip`.
+## Historical v0.2 baseline
 
-Only a successful workflow establishes a Windows build. Its generated
-`builds/OfflineChat-Windows-build.txt` records the exact source revision and run.
-The archive's SHA-256 is saved alongside it. The Windows executable is an
-unsigned portable test build; extract the whole folder and retain DLLs/data.
+The previous direct-chat application used Flutter 3.35.7 / Dart 3.9.2. Its
+recorded baseline was a clean analyzer, 31 Dart tests passing with none skipped,
+and an Android release APK built with Temurin 21.0.12.1+1, Gradle 8.12, Android
+Gradle plugin 8.9.1, Kotlin 2.1.0, target SDK 36 and minimum SDK 24. That APK was
+development-signed and its package/signature/alignment were verified.
 
-Windows 10 version 1809 or newer, or Windows 11 x64, is required. BLE host mode
-also depends on the adapter's peripheral-role support. Hosting on Android and
-joining from Windows is the fallback for adapters without advertising support.
+The Windows v0.2 workflow for source
+`f248528edc200033ad225ada9727cd4101e918cc` completed successfully at
+https://github.com/MADEEVESH/github_test/actions/runs/39563321553. It ran its
+31 tests, release compile, package checks and launch smoke test. The published
+x64 ZIP had SHA-256
+`eaf44b9955b4deae87d2e47f617113ecc4ff5dd0a2757b71461b43fe6e443708`.
 
-Automated tests and the Windows process launch check do not verify real radio
-discovery, delivery or interoperability. Use the two-device procedure in
-README.md for Android/Windows testing with physical Bluetooth hardware.
+Those results validate the historical unencrypted direct app. They are not
+evidence of v2 encrypted sessions, relaying, SQLite custody or field operation.
+Windows remains the legacy direct app unless a separate mesh port is built and
+tested. No physical BLE compatibility claim is inherited from either build.

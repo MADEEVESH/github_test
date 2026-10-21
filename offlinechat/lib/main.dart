@@ -1,13 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'ble_chat_controller.dart';
 import 'chat_message.dart';
+import 'mesh/mesh_app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const OfflineChatApp());
+  runApp(defaultTargetPlatform == TargetPlatform.android
+      ? const ProviderScope(child: MeshApp())
+      : const OfflineChatApp());
 }
 
 class OfflineChatApp extends StatelessWidget {
