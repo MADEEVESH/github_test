@@ -29,6 +29,9 @@ class MeshRouter(
     private val rates = object : LinkedHashMap<String, Rate>(128, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Rate>?): Boolean = size > 128
     }
+    private val verifiedPackets = object : LinkedHashMap<String, Boolean>(4096, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?): Boolean = size > 4096
+    }
 
     @Synchronized
     fun sendText(recipientId: String, text: String): String {
@@ -47,7 +50,7 @@ class MeshRouter(
         val history = historyRow(envelope, recipient.id, text, true, "pending", digest)
         when (store.commit(queued(packet, true, now), history)) {
             StoreCommit.STORED -> Unit
-            StoreCommit.QUOTA -> throw IllegalStateException("Relay queue is full. Wait for expiry or increase its storage limit.")
+            StoreCommit.QUOTA -> throw IllegalStateException("Relay queue is full (byte or envelope count limit). Wait for expiry; the byte limit can also be increased in Settings.")
             else -> throw IllegalStateException("Could not create a unique message; no message was queued.")
         }
         store.log("info", "Encrypted message queued: ${envelope.id}", now)
@@ -66,11 +69,11 @@ class MeshRouter(
             require(envelope.expiresAt > now && envelope.expiresAt > envelope.createdAt) { "Message has expired." }
             require(envelope.expiresAt - envelope.createdAt <= MAX_TTL_MS) { "Message TTL exceeds seven days." }
             require(envelope.maxHops in 1..16) { "Invalid signed hop budget." }
-            require(crypto.verifyEnvelope(envelope)) { "Invalid envelope signature or identity." }
-            require(crypto.verifyRoute(packet, crypto.identity().id, authenticatedPeerId)) { "Invalid signed route or peer binding." }
             val encoded = crypto.encodePacket(packet)
             require(encoded.size <= MAX_PACKET_BYTES) { "Envelope exceeds the transfer size limit." }
             require(checkRate(authenticatedPeerId, encoded.size, now)) { "Peer receive rate limit reached; retry later." }
+            require(crypto.verifyEnvelope(envelope)) { "Invalid envelope signature or identity." }
+            require(crypto.verifyRoute(packet, crypto.identity().id, authenticatedPeerId)) { "Invalid signed route or peer binding." }
             digest = crypto.envelopeDigest(envelope)
             val seen = store.seenDigest(envelope.id)
             if (seen != null) {
@@ -92,9 +95,14 @@ class MeshRouter(
                 val text = strictUtf8(plaintext)
                 require(text.isNotBlank()) { "Empty message is not accepted." }
                 val history = historyRow(envelope, contact.id, text, false, "delivered", digest)
-                val receiptBody = ReceiptPayload(envelope.id, digest, now).encode()
+                // Allowed clock skew must not create a receipt predating the signed message.
+                val receiptBody = ReceiptPayload(envelope.id, digest, maxOf(now, envelope.createdAt)).encode()
                 val settings = store.settings()
-                val receipt = crypto.seal(contact, EnvelopeKind.RECEIPT, receiptBody, now, settings.ttlSeconds, settings.maxHops)
+                // A recipient's short local TTL must not erase the receipt while the original
+                // message is still valid during a delayed return encounter.
+                val receiptTtl = maxOf(settings.ttlSeconds, (envelope.expiresAt - now + 999L) / 1000L)
+                    .coerceAtMost(MAX_TTL_MS / 1000L)
+                val receipt = crypto.seal(contact, EnvelopeKind.RECEIPT, receiptBody, now, receiptTtl, settings.maxHops)
                 val result = store.commit(
                     QueuedEnvelope(packet, encoded, digest, false, now), history,
                     listOf(queued(RoutedEnvelope(receipt), true, now)),
@@ -124,9 +132,16 @@ class MeshRouter(
     @Synchronized
     fun inventory(limit: Int = 256, offset: Int = 0): List<InventoryEntry> {
         require(limit in 1..256 && offset >= 0) { "Invalid inventory page." }
+        return inventorySnapshot().drop(offset).take(limit)
+    }
+
+    /** One immutable, validated snapshot per synchronization cycle; no repeated page scans. */
+    @Synchronized
+    fun inventorySnapshot(limit: Int = 4096): List<InventoryEntry> {
+        require(limit in 1..4096) { "Invalid inventory snapshot limit." }
         cleanup()
         return store.queued(clock()).asSequence().filter { validStored(it) }
-            .sortedWith(priority(null)).drop(offset).take(limit)
+            .sortedWith(priority(null)).take(limit)
             .map { record ->
                 val e = record.packet.envelope
                 InventoryEntry(e.id, record.digest.hex(), e.recipientId, e.expiresAt, record.packet.route.size, e.kind.name.lowercase())
@@ -139,13 +154,16 @@ class MeshRouter(
         cleanup()
         val now = clock()
         if (store.backoff(peerId).nextAllowedAt > now) return emptyList()
+        val relayEnabled = store.settings().relayEnabled
         return store.queued(now).asSequence()
-            .filter { validStored(it) }
-            .filter { it.local || store.settings().relayEnabled }
+            .filter { it.local || relayEnabled }
             .filter { it.packet.envelope.recipientId != crypto.identity().id }
             .filter { it.packet.route.size < it.packet.envelope.maxHops }
-            .filter { !remoteIds.contains("${it.id}:${it.digest.hex()}") && !store.hasCustody(it.id, peerId) }
+            // A previous custody ACK is historical evidence, not the peer's current queue.
+            // Its freshly authenticated inventory is authoritative after restart/expiry.
+            .filter { !remoteIds.contains("${it.id}:${it.digest.hex()}") }
             .sortedWith(priority(peerId))
+            .filter { validStored(it) }
             .mapNotNull { record ->
                 try { crypto.appendHop(record.packet, peerId) }
                 catch (_: IllegalArgumentException) { null } // Visited peer/terminal recipient; never transmit a loop.
@@ -214,9 +232,21 @@ class MeshRouter(
     }
 
     private fun validStored(record: QueuedEnvelope): Boolean = try {
-        crypto.verifyEnvelope(record.packet.envelope) &&
-            MessageDigest.isEqual(crypto.envelopeDigest(record.packet.envelope), record.digest) &&
-            crypto.verifyRoute(record.packet, crypto.identity().id, null)
+        val localId = crypto.identity().id
+        require(record.local == (record.packet.envelope.sender.id == localId && record.packet.route.isEmpty()))
+        require(record.digest.size == 32)
+        // Re-encode before consulting the cache: ByteArrays in both a packet and its persisted
+        // record can be mutated. Neither a matching UUID nor stale encoded bytes imply validity.
+        val canonical = crypto.encodePacket(record.packet)
+        require(MessageDigest.isEqual(canonical, record.encoded))
+        val key = "${EnvelopeCodec.digest(canonical).hex()}:${record.digest.hex()}"
+        if (verifiedPackets[key] == true) true
+        else {
+            val valid = MessageDigest.isEqual(crypto.envelopeDigest(record.packet.envelope), record.digest) &&
+                crypto.verifyRoute(record.packet, localId, null) // Includes the envelope signature.
+            if (valid) verifiedPackets[key] = true
+            valid
+        }
     } catch (_: Exception) { false }
 
     private fun priority(peer: String?): Comparator<QueuedEnvelope> = compareBy<QueuedEnvelope>(
@@ -253,7 +283,7 @@ class MeshRouter(
     companion object {
         const val CLOCK_SKEW_MS = 300_000L
         const val MAX_TTL_MS = 604_800_000L
-        const val MAX_PACKET_BYTES = 65_536
+        const val MAX_PACKET_BYTES = EnvelopeCodec.MAX_PACKET_BYTES
         private fun sameKeys(a: PublicIdentity, b: PublicIdentity): Boolean = a.id == b.id &&
             MessageDigest.isEqual(a.signingKey, b.signingKey) && MessageDigest.isEqual(a.encryptionKey, b.encryptionKey)
         internal fun strictUtf8(bytes: ByteArray): String = Charsets.UTF_8.newDecoder()

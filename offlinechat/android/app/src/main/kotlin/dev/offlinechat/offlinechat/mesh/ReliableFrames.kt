@@ -108,7 +108,7 @@ class ReliableFrames(
 
     fun accept(frame: ByteArray) {
         if (closed) return
-        if (frame.size < ACK_BYTES || frame.size > MAX_ATT_PAYLOAD ||
+        if (frame.size < ACK_BYTES || frame.size > attPayload ||
             (frame[0].toInt() and 0xff) != MAGIC || (frame[1].toInt() and 0xff) != VERSION) {
             terminate("Malformed or unsupported BLE frame boundary.", true)
             return
@@ -249,13 +249,18 @@ class ReliableFrames(
                 return
             }
             val restored = try {
-                journal.readInbound(peer, id).map { it.copyOf() }
+                journal.readInbound(peer, id)
             } catch (error: Exception) {
                 terminate("Could not restore incoming BLE fragments: ${error.message}", true)
                 return
             }
-            val size = restored.sumOf { it.size }
-            if (restored.size > total || size > MAX_PAYLOAD_BYTES || restored.any { it.isEmpty() }) {
+            // A journal can outlive a link (and its negotiated MTU), but no
+            // fragment could ever have exceeded the protocol's maximum size.
+            // Check before copying and sum with Long so corrupt durable state
+            // cannot wrap the aggregate byte quota.
+            val size = restored.sumOf { it.size.toLong() }
+            if (restored.size > total || size > MAX_PAYLOAD_BYTES ||
+                restored.any { it.isEmpty() || it.size > MAX_ATT_PAYLOAD - DATA_HEADER_BYTES }) {
                 terminate("Corrupt or oversized durable BLE transfer state.", true)
                 return
             }
@@ -263,7 +268,7 @@ class ReliableFrames(
                 terminate("BLE continuation arrived without a durable first fragment.", true)
                 return
             }
-            state = Incoming(total, restored.toMutableList(), size, clock())
+            state = Incoming(total, restored.map { it.copyOf() }.toMutableList(), size.toInt(), clock())
             incoming[id] = state
         }
         if (state.total != total || sequence > state.chunks.size) {

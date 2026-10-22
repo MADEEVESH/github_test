@@ -36,7 +36,8 @@ void main() {
       expect(find.text('You: Windows User'), findsOneWidget);
       expect(find.text('Host'), findsOneWidget);
       expect(find.text('Find devices'), findsOneWidget);
-      expect(find.textContaining('Start hosting on one device'), findsOneWidget);
+      expect(
+          find.textContaining('Start hosting on one device'), findsOneWidget);
       expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
       expect(tester.takeException(), isNull);
     } finally {

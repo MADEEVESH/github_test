@@ -27,7 +27,8 @@ class ChannelMeshApi implements MeshApi {
 
   Future<MeshSnapshot> _state(String method,
           [Map<String, Object?>? arguments]) async =>
-      MeshSnapshot.fromMap(meshMap(await _methods.invokeMethod(method, arguments)));
+      MeshSnapshot.fromMap(
+          meshMap(await _methods.invokeMethod(method, arguments)));
 
   @override
   Stream<MeshSnapshot> get snapshots => _events
@@ -37,7 +38,8 @@ class ChannelMeshApi implements MeshApi {
   @override
   Future<MeshSnapshot> bootstrap() => _state('bootstrap');
   @override
-  Future<MeshSnapshot> onboard(String name) => _state('onboard', {'name': name});
+  Future<MeshSnapshot> onboard(String name) =>
+      _state('onboard', {'name': name});
   @override
   Future<MeshContact> validateContact(String qr) async => MeshContact.fromMap(
       meshMap(await _methods.invokeMethod('validateContact', {'qr': qr})));
@@ -45,10 +47,10 @@ class ChannelMeshApi implements MeshApi {
   Future<MeshSnapshot> addContact(String qr) =>
       _state('addContact', {'qr': qr, 'verified': true});
   @override
-  Future<List<MeshMessage>> messages(String contactId) async =>
-      meshRows(await _methods.invokeMethod('messages', {'contactId': contactId}))
-          .map(MeshMessage.fromMap)
-          .toList();
+  Future<List<MeshMessage>> messages(String contactId) async => meshRows(
+          await _methods.invokeMethod('messages', {'contactId': contactId}))
+      .map(MeshMessage.fromMap)
+      .toList();
   @override
   Future<MeshSnapshot> send(String contactId, String text) =>
       _state('send', {'contactId': contactId, 'text': text});

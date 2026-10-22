@@ -20,7 +20,9 @@ available. All relay nodes need the BLE features required by the runtime.
 Keep Wi-Fi, hotspot, mobile data and any USB network tethering off. Bluetooth
 must remain on. Use USB only for installation/log collection and prevent USB
 networking. This verifies that no available internet path is helping delivery;
-the app itself must not declare INTERNET permission in its merged mesh APK.
+the release APK must not declare INTERNET permission. Flutter debug/profile
+APKs include that permission for development tooling and are unsuitable for
+this particular permission check; their message transport still uses BLE.
 
 Set each device clock close to the others. Do not reduce the normal TTL for
 the main relay test. Start each foreground service through its visible UI

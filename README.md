@@ -1,3 +1,19 @@
+# OfflineChat Mesh v2
+
+The Android Mesh v2 upgrade is on the **mesh-v2-wip** branch, under
+[`offlinechat`](offlinechat). It is experimental; physical Bluetooth relay
+tests and AndroidKeyStore device tests are still required.
+
+- [Download Android Mesh 2.0.0 APK](https://github.com/MADEEVESH/github_test/raw/refs/heads/mesh-v2-wip/builds/OfflineChat-Mesh-2.0.0.apk)
+- [Download Mesh 2.0.0 source ZIP](https://github.com/MADEEVESH/github_test/raw/refs/heads/mesh-v2-wip/builds/OfflineChat-Mesh-2.0.0-source.zip)
+- [Setup, architecture and test instructions](offlinechat/README.md)
+- [Executed build results](offlinechat/BUILD_REPORT.md)
+- [Windows v0.2 download](https://github.com/MADEEVESH/github_test/raw/refs/heads/offlinechat-build/builds/OfflineChat-Windows-x64.zip) — retained legacy direct chat; it does not join the Android mesh.
+
+The original repository content follows.
+
+---
+
 # github_test
 #include<iostream>
 #include<cmath>

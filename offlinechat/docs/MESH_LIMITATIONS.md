@@ -1,85 +1,147 @@
-# Mesh v2 limitations and requirement status
+# Mesh v2 limitations and verification boundaries
 
-This is an experimental custom protocol. A feature is not verified merely
-because a source file or UI control exists. Use `../BUILD_REPORT.md` for exact
-executed commands/results and `PHYSICAL_DEVICE_TEST_PLAN.md` for acceptance.
+The Android implementation now includes native BLE transport, encrypted
+identities, signed sessions and routes, persistent forwarding, receipt
+validation and Flutter screens. This is an experimental custom protocol.
+Read [BUILD_REPORT.md](../BUILD_REPORT.md) for exact executed commands/results;
+source files, UI controls and successful packaging are not evidence of radio
+delivery. Historical v0.2 results do not validate v2.
 
-## Security and trust limits
+## Security and trust
 
-- Google Tink supplies maintained cryptographic primitives. The app's identity
-  binding, session transcript, binary codec, routing and receipt protocol have
-  not received an independent security audit. Do not label the whole system
-  audited, reviewed E2EE solely because it calls Tink.
-- QR self-signatures prove consistency and key ownership. Trust in the intended
-  person depends on an in-person/trusted-channel QR/fingerprint confirmation.
-  Unknown authenticated relays are not automatically verified contacts.
-- Relay content is encrypted, but identities, timing, lengths, route/encounter
-  metadata and traffic patterns are exposed. There is no anonymous routing or
-  general Sybil resistance. A malicious relay can drop/delay traffic and BLE
-  can be jammed; no protocol guarantees delivery.
-- AndroidKeyStore does not imply every phone has a hardware-backed key. Loss,
-  invalidation, reinstall, clear-data or some device migrations can make local
-  history/keysets unrecoverable. There is no implemented cross-device private
-  identity backup/recovery unless an explicit tested mechanism is added.
-- Wall-clock expiry assumes reasonably synchronized offline device clocks.
-  There is no internet time source. Bounded clock skew, replay retention and
-  expiry cleanup must be tested with actual clocks and process restarts.
-- SQLite queue quotas bound retained relay data, not radio airtime or every
-  form of denial of service. Malicious inventory floods, disconnect churn and
-  storage exhaustion require monitoring and rate-limit validation.
+- Google Tink Android 1.24.0 supplies raw Ed25519 signatures, HPKE
+  X25519/HKDF-SHA256/AES-128-GCM and AES-256-GCM local history encryption. The
+  app's identity binding, handshake, codec, signed routes and receipt protocol
+  have not received an independent security audit. Passing tests does not make
+  the whole system audited E2EE.
+- A signed QR document binds keys, name and fingerprint; it does not establish
+  the intended person's identity. Contact import requires explicit human
+  confirmation through an in-person or trusted-channel QR/fingerprint check.
+  A valid authenticated relay is not automatically a verified contact.
+- End-to-end encryption protects message content from intermediate relays.
+  Sender/recipient fingerprints, public identities, timestamps, lengths,
+  routes, encounters and traffic patterns remain exposed. Session controls
+  are signed with fresh transcript/sequence binding; inventories and routing
+  metadata are not independently encrypted. SQLite contains public metadata
+  alongside encrypted history and envelopes.
+- There is no message-key ratchet or post-compromise recovery. Compromise of
+  a recipient's long-term HPKE private key can expose captured envelopes.
+  There is no implemented key rotation/revocation distribution, private
+  identity export, cross-device recovery or lost-key recovery workflow.
+- AndroidKeyStore wrapping is mandatory with no cleartext fallback. Corrupt or
+  partial vault state, a missing/invalidated master key or provider failure
+  stops loading. Normal loads also reject an entirely missing vault; only
+  explicit initial onboarding can create keysets. Hardware backing depends
+  on the device. Clearing app data, reinstalling or losing the master key may
+  make identity/history unrecoverable; backup/device-transfer exclusions avoid
+  restoring ciphertext without its wrapping key. Real KeyStore instrumentation
+  remains unexecuted.
+- TTL uses offline wall clocks, permitting at most five minutes of future
+  creation skew. Significant clock drift can reject valid packets or affect
+  expiry and receipt handling. No Internet time source is used.
+- A malicious relay can discard/delay traffic, acknowledge custody dishonestly
+  or refuse to forward. Custody never proves recipient delivery. There is no
+  anonymous routing, global admission authority, general Sybil resistance,
+  radio-jamming protection or delivery guarantee. Local quotas, rate limits
+  and backoff cannot eliminate denial of service.
 
-## Platform and operation limits
+## Capacity, state and recovery
 
-- The encrypted mesh target is Android 10/API 29+. BLE advertising/peripheral
-  support and useful simultaneous central/server operation depend on the
-  actual radio, driver, Android build and manufacturer policy. A model list is
-  not established without recorded physical tests.
-- Android may suspend or terminate the process despite a connected-device
-  foreground service. Force-stop prevents operation until the user restarts.
-  Battery optimization, Doze and permission changes affect discovery/delivery.
-  No continuous-background or guaranteed reconnect claim is made.
-- A foreground notification proves service lifecycle only. It does not prove
-  advertising, scanning, authenticated peers, decryption or delivery.
-- Version 2 is not wire-compatible with the retained unencrypted v0.2 direct
-  app. Windows remains that legacy direct app, not an encrypted mesh peer.
-  An older published Android APK does not silently gain mesh features.
-- Native Android builds and unit tests in Linux cannot establish BLE range,
-  concurrent roles, packet timing, peer encounters or field delivery. An
-  Android emulator does not replace the required physical phones.
-- Legacy v0.2 history used plaintext preferences and has no verified contact
-  identity. Any migration must keep it explicitly unverified or archived; it
-  must not turn old unverified names into verified encrypted contacts. Existing
-  legacy data must not be called encrypted without an actual migration.
+- The relay queue defaults to 25 MiB and is also capped at 4,096 complete
+  envelopes, including receipts. Raising the byte setting does not raise that
+  fixed count cap. Quota pressure can reject text or its atomic receipt batch;
+  the receiver sends no custody acknowledgment for failed admission.
+- Queue bytes measure serialized queued packets, not the whole SQLite file.
+  Encrypted history, replay bindings, contacts, journals, indexes and SQLite
+  overhead consume additional space. Fixed limits include 500 contacts,
+  10,000 history records and 100,000 retained ID/digest bindings. History is
+  retained after message TTL, and there is no implemented history pruning or
+  contact-deletion UI; reaching those fixed bounds can block new admission.
+- Fragment ACKs confirm transport progress only. Full payload handling is
+  asynchronous, so a final fragment ACK can precede successful full-envelope
+  admission. A process interruption between those steps is repaired by
+  envelope inventory reconciliation, not by assuming custody. Reconnect uses
+  a fresh session and full-envelope retransmission rather than a guaranteed
+  continuation at the prior fragment offset. Old fragment journals expire
+  after 30 minutes.
+- Receipt delivery needs a return path to the original sender. A recipient
+  may read text while the sender still shows Pending/Relayed until the signed
+  receipt returns. Expiry or queue pressure can prevent that return. Receipt
+  authentication cannot guarantee a route exists.
+- Inventories are bounded to the admitted queue and exchanged after
+  authentication. Protocol/transport failures retain pending envelopes for
+  later reconciliation. There is no guarantee of reconnection, fairness,
+  throughput or latency in a congested/changing topology; slow-radio and
+  interruption behavior still require physical measurement.
+- The native mesh v1-to-v2 SQLite migration preserves mesh records and adds
+  frame journals. Existing v0.2 direct-chat history remains plaintext in its
+  original preferences and is not auto-migrated, re-encrypted or imported as
+  verified contacts. Installing v2 does not retroactively encrypt old data.
 
-## Acceptance matrix
+## Platform and user-visible boundaries
 
-Status at initial documentation draft is **pending v2 implementation
-validation**. Historical v0.2 checks are not v2 evidence. Update this table only
-after the named checks run; never infer a pass from build completion alone.
+- Encrypted mesh targets Android 10/API 29+. BLE advertising/peripheral
+  support, simultaneous central/server operation and practical MTU/connection
+  behavior vary by radio, driver, OS and manufacturer. The source checks
+  capabilities and caps active links at three. No supported-device model list
+  or measured range/throughput is established.
+- Camera permission is needed for scanning a contact QR. BLE runtime
+  permissions differ by Android version; Android 10/11 also needs location
+  permission and Location services for scanning. Notification permission can
+  be denied independently. Denial, Bluetooth toggles and radio failures must
+  be validated on real devices rather than inferred from permission code.
+- The user starts a `connectedDevice` foreground service. Its notification
+  reports service participation, not successful peer authentication or
+  delivery. The service is non-sticky: Android force-stop, process termination,
+  Doze, battery rules and manufacturer restrictions can interrupt operation,
+  and restart requires user action. Continuous background delivery is not
+  promised.
+- Notifications use generic text without message plaintext. The runtime
+  currently reports zero unread counts; unread/read tracking is not
+  implemented. Receiving a snapshot or notification does not validate the
+  entire BLE path.
+- Windows retains the existing unencrypted v0.2 direct-chat application. It
+  cannot join the Android v2 mesh, exchange v2 encrypted envelopes or relay
+  them. V2 uses a distinct BLE service and is not wire-compatible with v0.2.
+  An older published Android APK does not acquire these features until a new
+  v2 artifact is built and installed. Windows mesh support requires a separate
+  native transport/protocol port and verification.
+- No mesh Internet, Wi-Fi, mobile-data, cloud or backend fallback is
+  implemented. Linux builds/JVM tests cannot verify BLE range, concurrent
+  roles, packet timing or actual nearby encounters. Emulator tests can cover
+  KeyStore/database integration but do not replace physical radios.
 
-| Requirement group | Required evidence | Initial status |
+## Evidence by requirement
+
+Automated test source exists for the groups below. Results are intentionally
+referenced to [BUILD_REPORT.md](../BUILD_REPORT.md), which records the actual
+selected test suites and commands; do not infer a pass from this table.
+
+| Requirement | Implemented mechanism and automated coverage | Remaining evidence |
 | --- | --- | --- |
-| Local identity, QR verification and E2EE | Key-vault/code review; crypto tests for key binding, wrong recipient, tamper and parser bounds | Pending v2 validation |
-| No clear private keys at rest | Production storage-path audit and AndroidKeyStore integration test/physical inspection | Pending v2 validation |
-| Authenticated sessions | Fresh transcript tests; replay/identity/role mismatch rejection | Pending v2 validation |
-| Reliable native BLE transport | Framing/retry unit tests and actual GATT transfer on physical radios | Pending v2 validation; hardware not run |
-| Persistent relay store and migrations | SQLite migration/atomic custody/quota/restart tests | Pending v2 validation |
-| Multi-hop and store-and-forward | Router tests plus isolated A→B→C and delayed-encounter physical procedures | Pending v2 validation; hardware not run |
-| Receipt authentication | Wrong signer/recipient/ID/digest/replay tests; real receipt return path | Pending v2 validation; hardware not run |
-| Foreground service, notifications and recovery | Manifest/build checks and device lifecycle/permission/low-battery procedures | Pending v2 validation; hardware not run |
-| Flutter/Riverpod screens | Widget/bridge tests and Android UI smoke run | Pending v2 validation |
-| Buildable APK | Analyzer, Dart/native tests and debug APK command with nonzero failures preserved | Pending v2 validation |
-| Windows preservation | Legacy tests/build compatibility for unchanged Windows UI | Historical v0.2 success; mesh not supported |
+| Identity, QR and E2EE | Tink primitives; both-key fingerprint/self-signature; recipient, tamper, parameter and parser tests | Independent protocol review; physical QR/decryption checks |
+| Private keys and history at rest | Explicit KeyStore-encrypted keysets; separate local AEAD; corruption/reload instrumentation tests | AndroidKeyStore instrumentation not run; device storage inspection |
+| Authenticated sessions | Fresh mutual nonce/identity transcript; exact-byte signed sequential controls; tamper/replay/fresh-session tests | Actual BLE session/lifecycle exercise |
+| Reliable transport | Frame boundaries, fragmentation, ACK/retry, durable journal, quotas and failure tests | Physical GATT client/server, MTU, subscription and disconnect matrix |
+| Persistent custody | SQLite transactions, migration/quota/dedup/journal tests; receipt batch admission | Real process/power interruption and restart; hardware custody timing |
+| Multi-hop/store-and-forward | Signed edge chain, TTL/hop/loop rules, bounded inventories and router topology tests | Isolated physical A→B→C and delayed encounters not run |
+| Delivery receipts | Original-recipient signatures and original ID/digest/time binding; rejection tests | Physical return path while original sender is absent |
+| Foreground service and permissions | Native service, manifest, permission bridge, generic notifications and diagnostics | Device background/Doze/force-stop/battery/denial matrix not run |
+| Flutter screens and build | Riverpod mesh UI, bridge models and automated tests | Executed analyzer/tests/build results in BUILD_REPORT; device UI smoke |
+| Windows preservation | Existing legacy direct route remains separate | New Windows build/smoke result where recorded; v2 mesh unsupported |
 
-## Open verification work
+## Required next validation
 
-1. Finish implementation integration and record the actual Dart/native test
-   counts and Android APK result in `BUILD_REPORT.md`.
-2. Run native Android instrumentation on a supported device or emulator for
-   database/bridge/lifecycle behavior; label compilation-only separately.
-3. Complete the physical three-phone and delayed-contact plans, including the
-   no-relay negative control, persisted custody before power interruption, and
-   receipt return path while the sender is absent.
-4. Independently review the security protocol and operate it under deliberate
-   malformed traffic, storage pressure, replay and connection churn before any
-   sensitive or public deployment claim.
+1. Record selected-source analyzer, Dart/native test counts, Android build and
+   artifact checks in [BUILD_REPORT.md](../BUILD_REPORT.md). Instrumentation
+   compilation must be distinguished from execution.
+2. Run `connectedDebugAndroidTest` on a supported Android target for the real
+   KeyStore vault tests. Investigate device-specific provider/invalidation
+   behavior rather than adding a cleartext fallback.
+3. Execute [PHYSICAL_DEVICE_TEST_PLAN.md](PHYSICAL_DEVICE_TEST_PLAN.md), including
+   isolated three-phone routing, delayed contact, sender absence, no-relay
+   negative controls, queue pressure, interrupted custody and signed receipt
+   return. Record phone models/OS versions, clocks and observed outcomes.
+4. Complete independent security review and deliberate malformed-traffic,
+   replay, connection-churn and resource-exhaustion testing before making a
+   sensitive-use or field-readiness claim.

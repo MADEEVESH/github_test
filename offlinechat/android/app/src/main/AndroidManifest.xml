@@ -3,6 +3,9 @@
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Bundled QR libraries include a telemetry transport manifest. The installed
+         release app must not gain network access through a transitive library. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
@@ -17,7 +20,8 @@
         android:usesPermissionFlags="neverForLocation" tools:targetApi="s" tools:node="replace" />
 
     <application android:label="OfflineChat" android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher" android:allowBackup="false"
+        android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules">
         <service android:name=".mesh.MeshForegroundService" android:exported="false"
             android:foregroundServiceType="connectedDevice" />
         <activity android:name=".MainActivity" android:exported="true"

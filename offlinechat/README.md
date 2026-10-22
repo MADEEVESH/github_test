@@ -1,5 +1,3 @@
-> **Unfinished Mesh v2 checkpoint.** This snapshot does not build and has no verified mesh features. Read [CHECKPOINT_STATUS.md](CHECKPOINT_STATUS.md) before resuming.
-
 # OfflineChat Mesh v2
 
 Android-first, BLE-only messaging with local cryptographic identities,
@@ -12,6 +10,22 @@ The Android mesh and the retained Windows v0.2 direct-chat app are different
 protocols. The Windows app remains available for its original direct-chat
 workflow; it does not join the encrypted Android v2 mesh. Earlier v0.1/v0.2
 Android APKs also do not implement the v2 protocol.
+
+## Downloads and source
+
+This work is on the **mesh-v2-wip** branch. The repository's default `main`
+branch contains an older matrix example, so open the links below directly:
+
+- [Android Mesh 2.0.0 APK](https://github.com/MADEEVESH/github_test/raw/refs/heads/mesh-v2-wip/builds/OfflineChat-Mesh-2.0.0.apk).
+- [Mesh 2.0.0 source ZIP](https://github.com/MADEEVESH/github_test/raw/refs/heads/mesh-v2-wip/builds/OfflineChat-Mesh-2.0.0-source.zip).
+- [Source folder on GitHub](https://github.com/MADEEVESH/github_test/tree/mesh-v2-wip/offlinechat).
+- [Retained Windows v0.2 ZIP](https://github.com/MADEEVESH/github_test/raw/refs/heads/offlinechat-build/builds/OfflineChat-Windows-x64.zip).
+
+The mesh APK is an experimental development-signed build for testing. It is
+not a security-audited or physical-device-validated release. Android 10 or
+later and a BLE adapter supporting advertising are required. Install the same
+version on every Android mesh phone. Keep the whole extracted Windows folder
+together when running its separate legacy app.
 
 ## Android setup
 
@@ -33,11 +47,37 @@ cd ..
 flutter build apk --debug
 ```
 
+To obtain that directory from GitHub:
+
+```sh
+git clone --branch mesh-v2-wip --single-branch https://github.com/MADEEVESH/github_test.git
+cd github_test/offlinechat
+```
+
 On Windows use `gradlew.bat` instead of `./gradlew`. The debug APK is
 `build/app/outputs/flutter-apk/app-debug.apk`. Install that same APK on each
 test phone. `flutter run` is also available with a USB-debugging device attached.
 Configure a separate release signing key before distribution; do not commit
 private keys or signing passwords.
+
+`flutter build apk --release` creates
+`build/app/outputs/flutter-apk/app-release.apk`. The downloadable mesh APK uses
+that build mode with a development signing key. Its manifest has no Internet
+permission. Flutter's debug/profile manifests include Internet permission for
+development tooling; chat transport still uses BLE. Use the release APK for
+the offline permission acceptance checks. Dependencies and SDK downloads need
+network access only while developing/building.
+
+On Linux/macOS with Python 3, Java and `ANDROID_HOME` set, verify the packaged
+release with:
+
+```sh
+python3 scripts/check_android_apk.py build/app/outputs/flutter-apk/app-release.apk
+```
+
+This checks the actual APK for Internet permission, supported ABIs, signature,
+ZIP integrity and native-library/page alignment. The source ZIP has a top-level
+`SOURCE_REVISION.txt`; enter its `offlinechat` subdirectory to build the app.
 
 Native instrumentation tests, when a compatible Android device or emulator is
 attached, run with:
@@ -69,7 +109,8 @@ BLE advertising, concurrent central/peripheral operation or radio range.
    **Settings** controls relay participation, TTL, hop budget and queue storage.
 
 Default limits are eight hops, a 24-hour message TTL, 1024 UTF-8 plaintext bytes
-per message and a 25 MiB relay queue. A multibyte emoji can use more than one
+per message and a 25 MiB relay queue. The queue also admits at most 4096
+envelopes, including encrypted receipts. A multibyte emoji can use more than one
 byte. Custody acknowledgment can advance a message to **Relayed**; only a valid
 receipt authenticated as the intended recipient can advance it to **Delivered**.
 **Expired** means the message's permitted lifetime has ended.
@@ -83,6 +124,7 @@ the UI before resuming an interrupted physical test.
 
 - [Architecture and wire/security boundaries](docs/MESH_ARCHITECTURE.md).
 - [Three-phone and delayed-encounter procedures](docs/PHYSICAL_DEVICE_TEST_PLAN.md).
+- [Detailed verification checklist](docs/MESH_V2_TEST_PLAN.md).
 - [Limitations and requirement status](docs/MESH_LIMITATIONS.md).
 - [Executed build/test evidence](BUILD_REPORT.md).
 

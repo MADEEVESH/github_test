@@ -8,8 +8,8 @@ import 'mesh_models.dart';
 
 final meshApiProvider = Provider<MeshApi>((ref) => const ChannelMeshApi());
 final meshControllerProvider =
-    StateNotifierProvider<MeshController, MeshViewState>((ref) =>
-        MeshController(ref.watch(meshApiProvider)));
+    StateNotifierProvider<MeshController, MeshViewState>(
+        (ref) => MeshController(ref.watch(meshApiProvider)));
 
 class MeshViewState {
   const MeshViewState({
@@ -54,7 +54,8 @@ class MeshViewState {
 
 class MeshController extends StateNotifier<MeshViewState> {
   MeshController(this._api) : super(const MeshViewState()) {
-    _subscription = _api.snapshots.listen(_acceptEvent, onError: (Object error) {
+    _subscription =
+        _api.snapshots.listen(_acceptEvent, onError: (Object error) {
       if (mounted) state = state.copyWith(error: _message(error));
     });
     unawaited(reload());
@@ -66,7 +67,7 @@ class MeshController extends StateNotifier<MeshViewState> {
 
   String _message(Object error) {
     if (error is PlatformException) {
-      return error.message ?? 'Native mesh operation failed: ' + error.code;
+      return error.message ?? 'Native mesh operation failed: ${error.code}';
     }
     if (error is MissingPluginException) {
       return 'Android Mesh v2 is unavailable in this build. Install the Android '
@@ -91,6 +92,7 @@ class MeshController extends StateNotifier<MeshViewState> {
       final snapshot = await _api.bootstrap();
       if (!mounted) return;
       if (revision == _revision) {
+        _revision++;
         state = state.copyWith(snapshot: snapshot, loading: false);
       }
     } catch (error) {
@@ -102,11 +104,17 @@ class MeshController extends StateNotifier<MeshViewState> {
 
   Future<bool> _mutate(Future<MeshSnapshot> Function() action) async {
     if (!mounted || state.busy) return false;
+    final revision = _revision;
     state = state.copyWith(busy: true, clearError: true);
     try {
       final snapshot = await action();
       if (!mounted) return false;
-      state = state.copyWith(snapshot: snapshot, loading: false, busy: false);
+      if (revision == _revision) {
+        _revision++;
+        state = state.copyWith(snapshot: snapshot, loading: false, busy: false);
+      } else {
+        state = state.copyWith(loading: false, busy: false);
+      }
       final selected = state.selectedContact;
       if (selected != null) await loadMessages(selected);
       return true;
@@ -117,16 +125,18 @@ class MeshController extends StateNotifier<MeshViewState> {
   }
 
   Future<bool> onboard(String name) {
+    if (!mounted) return Future.value(false);
     final clean = name.trim();
-    if (clean.isEmpty) {
-      state = state.copyWith(error: 'Enter a display name.');
+    if (clean.isEmpty || clean.runes.length > 32) {
+      state =
+          state.copyWith(error: 'Enter a display name of 1 to 32 characters.');
       return Future.value(false);
     }
     return _mutate(() => _api.onboard(clean));
   }
 
   Future<MeshContact?> validateContact(String qr) async {
-    if (state.busy) return null;
+    if (!mounted || state.busy) return null;
     if (qr.trim().isEmpty) {
       state = state.copyWith(error: 'Scan or paste a contact QR first.');
       return null;
@@ -147,6 +157,7 @@ class MeshController extends StateNotifier<MeshViewState> {
       _mutate(() => _api.addContact(qr.trim()));
 
   Future<void> openConversation(String contactId) async {
+    if (!mounted) return;
     state = state.copyWith(selectedContact: contactId, clearError: true);
     await loadMessages(contactId);
   }
@@ -171,17 +182,18 @@ class MeshController extends StateNotifier<MeshViewState> {
       );
     } catch (error) {
       if (mounted && request == _messageRequest) {
-        state = state.copyWith(
-            messagesLoading: false, error: _message(error));
+        state = state.copyWith(messagesLoading: false, error: _message(error));
       }
     }
   }
 
   Future<bool> send(String contactId, String text) {
+    if (!mounted) return Future.value(false);
     final clean = text.trim();
     if (clean.isEmpty) return Future.value(false);
     if (meshTextBytes(clean) > 1024) {
-      state = state.copyWith(error: 'Message is too large. Maximum: 1 KB (1024 UTF-8 bytes).');
+      state = state.copyWith(
+          error: 'Message is too large. Maximum: 1024 UTF-8 bytes.');
       return Future.value(false);
     }
     return _mutate(() => _api.send(contactId, clean));
@@ -189,8 +201,45 @@ class MeshController extends StateNotifier<MeshViewState> {
 
   Future<bool> start() => _mutate(_api.start);
   Future<bool> stop() => _mutate(_api.stop);
-  Future<bool> updateSettings(MeshSettings settings) =>
-      _mutate(() => _api.updateSettings(settings));
+  Future<void> refreshDiagnostics() async {
+    try {
+      final diagnostics = await _api.diagnostics();
+      if (!mounted) return;
+      final current = state.snapshot;
+      if (current == null) return;
+      state = state.copyWith(
+          snapshot: MeshSnapshot(
+        onboarded: current.onboarded,
+        identity: current.identity,
+        contacts: current.contacts,
+        chats: current.chats,
+        peers: current.peers,
+        settings: current.settings,
+        capabilities: current.capabilities,
+        activity: current.activity,
+        diagnostics: diagnostics,
+      ));
+    } catch (error) {
+      if (mounted) state = state.copyWith(error: _message(error));
+    }
+  }
+
+  Future<bool> updateSettings(MeshSettings settings) {
+    if (!mounted) return Future.value(false);
+    if (settings.maxHops < 1 ||
+        settings.maxHops > 16 ||
+        settings.ttlSeconds < 60 ||
+        settings.ttlSeconds > 7 * 86400 ||
+        settings.queueLimitBytes < 1024 * 1024 ||
+        settings.queueLimitBytes > 100 * 1024 * 1024) {
+      state = state.copyWith(
+          error: 'Use 1–16 hops, a lifetime of 1 minute to '
+              '7 days, and storage of 1–100 MiB.');
+      return Future.value(false);
+    }
+    return _mutate(() => _api.updateSettings(settings));
+  }
+
   void clearError() {
     if (mounted) state = state.copyWith(clearError: true);
   }

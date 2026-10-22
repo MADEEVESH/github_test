@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 Map<String, dynamic> meshMap(Object? value) {
-  if (value is! Map) throw const FormatException('Invalid native mesh response.');
+  if (value is! Map) {
+    throw const FormatException('Invalid native mesh response.');
+  }
   return value.map((key, value) => MapEntry(key.toString(), value));
 }
 
@@ -71,7 +73,7 @@ class MeshPeer {
         address: map['address']?.toString() ?? '',
         id: map['id']?.toString(),
         name: map['name']?.toString() ?? 'Nearby device',
-        state: map['state']?.toString() ?? 'discovered',
+        state: map['state']?.toString() ?? 'unknown',
         rssi: map['rssi'] is num ? (map['rssi'] as num).toInt() : null,
       );
   final String address;
@@ -113,7 +115,8 @@ class MeshCapabilities {
       required this.bluetoothOn,
       required this.permissionsGranted,
       this.reason});
-  factory MeshCapabilities.fromMap(Map<String, dynamic> map) => MeshCapabilities(
+  factory MeshCapabilities.fromMap(Map<String, dynamic> map) =>
+      MeshCapabilities(
         supported: map['supported'] == true,
         advertising: map['advertising'] == true,
         bluetoothOn: map['bluetoothOn'] == true,
@@ -178,7 +181,8 @@ class MeshSnapshot {
   });
   factory MeshSnapshot.fromMap(Map<String, dynamic> map) {
     if (map['onboarded'] is! bool) {
-      throw const FormatException('Native mesh state is missing onboarding status.');
+      throw const FormatException(
+          'Native mesh state is missing onboarding status.');
     }
     return MeshSnapshot(
       onboarded: map['onboarded'] as bool,
@@ -215,14 +219,23 @@ class MeshMessage {
       required this.outgoing,
       required this.time,
       required this.status});
-  factory MeshMessage.fromMap(Map<String, dynamic> map) => MeshMessage(
-        id: map['id']?.toString() ?? '',
-        contactId: map['contactId']?.toString() ?? '',
-        text: map['text']?.toString() ?? '',
-        outgoing: map['outgoing'] == true,
-        time: _number(map['time']),
-        status: map['status']?.toString() ?? 'pending',
-      );
+  factory MeshMessage.fromMap(Map<String, dynamic> map) {
+    final status = map['status'];
+    if (status is! String ||
+        !const {'pending', 'relayed', 'delivered', 'expired'}
+            .contains(status)) {
+      throw const FormatException(
+          'Native message has an invalid delivery status.');
+    }
+    return MeshMessage(
+      id: map['id']?.toString() ?? '',
+      contactId: map['contactId']?.toString() ?? '',
+      text: map['text']?.toString() ?? '',
+      outgoing: map['outgoing'] == true,
+      time: _number(map['time']),
+      status: status,
+    );
+  }
   final String id;
   final String contactId;
   final String text;
