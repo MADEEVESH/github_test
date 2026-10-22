@@ -1,0 +1,18 @@
+OfflineChat Mesh 2.0.0 Android experimental build
+Source commit: 1d527447400e97633cb6a1b0726e3bc576989d4b
+Source tree: https://github.com/MADEEVESH/github_test/tree/1d527447400e97633cb6a1b0726e3bc576989d4b/offlinechat
+Package: dev.offlinechat.offlinechat; versionName 2.0.0; versionCode 3
+Android: minimum API29; target/compile API36; armeabi-v7a, arm64-v8a, x86_64
+APK mode: release, signed with development key (not a public distribution key).
+Signing certificate SHA256: 2775b5057a0a695c64143d61413ddb7d30b21d08948f982e16b32d2dd7501af2
+Checks passed locally: clean Dart formatting/analyzer,50 Flutter tests,85 native tests,
+arm64 debug build,universal release build,device-test APK compilation,APK ZIP integrity,
+no Internet permission,v2 signing,16KiB ELF and ZIP alignment.
+Native breakdown: IdentityCrypto17,PeerSession10,ReliableFrames22,MeshRouter27,SqliteMeshStore9.
+NOT RUN: four AndroidKeyStore device tests,physical A-B-C/delayed-encounter BLE,
+QR camera,background/permission/low-battery hardware acceptance,independent protocol audit.
+Windows remains the earlier legacy v0.2 direct-chat download.
+
+SHA256 checksums:
+c27b654fbd0a0be01eb45e448f5f845707f5fd214e0ee2be69fa0a5df4893f2c  OfflineChat-Mesh-2.0.0.apk
+d76316617b5d66081b0bc951be2ffc6915d4c6510fdfb01337a59854bb2ffb6a  OfflineChat-Mesh-2.0.0-source.zip

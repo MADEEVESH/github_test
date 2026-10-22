@@ -1,12 +1,20 @@
 # OfflineChat downloads
 
-- [Windows x64 ZIP](OfflineChat-Windows-x64.zip): Windows 10 version 1809 or newer / Windows 11. Extract the entire folder and run offlinechat.exe with its DLLs and data. Published after the Windows release workflow succeeds.
-- [Android APK 0.2.0](OfflineChat-0.2.0.apk): Android 7.0 or newer; development-signed for sideload testing.
-- [Complete Android and Windows source](OfflineChat-source.zip).
-- [SHA-256 checksums](SHA256SUMS). Windows ZIP has its own .sha256 file after publication.
+## Android Mesh 2.0.0 (experimental)
 
-On GitHub, open a binary file and use **Download raw file**. The older Android 0.1.0 APK remains available for existing links.
+- [Installable Android APK](OfflineChat-Mesh-2.0.0.apk): Android 10/API29 or later; includes ARM32, ARM64 and x86_64. Development-signed release build.
+- [Mesh source ZIP](OfflineChat-Mesh-2.0.0-source.zip): extract, open the `offlinechat` subdirectory, and follow its README.
+- [Source revision, validation and limitations](OfflineChat-Mesh-build.txt).
+- [Mesh SHA-256 checksums](OfflineChat-Mesh-SHA256SUMS).
 
-Source is in ../offlinechat. The repository-root Windows release workflow analyzes, tests, compiles and packages on Windows 2022, then records its exact source commit in OfflineChat-Windows-build.txt.
+50 Flutter tests and 85 native tests pass; debug/release APKs build. The release APK was checked for no Internet permission, ZIP integrity, signing and 16 KiB ELF/ZIP alignment. Physical BLE A→B→C, delayed encounters, camera/background behavior and four AndroidKeyStore device tests remain unrun. The custom protocol has not received an independent security audit. See [the device test plan](../offlinechat/docs/MESH_V2_TEST_PLAN.md).
 
-Local analyzer is clean and 31 tests pass; Android 0.2.0 release APK is rebuilt. Mocked tests and hosted-runner launch checks do not validate physical Bluetooth discovery or Android/Windows delivery. Test with two BLE devices.
+On GitHub, open an APK/ZIP and select **Download raw file**. The same APK must be installed on every Android mesh phone; create identities, verify contact QR fingerprints, and start mesh sharing through the visible control.
+
+## Retained v0.2 direct-chat downloads
+
+- [Windows x64 ZIP](https://github.com/MADEEVESH/github_test/raw/refs/heads/offlinechat-build/builds/OfflineChat-Windows-x64.zip): Windows 10 version1809+ or Windows11. Extract the entire folder and keep `offlinechat.exe`, DLLs and `data` together. It does not join the Android encrypted mesh.
+- [Android v0.2 APK](OfflineChat-0.2.0.apk): Android7+; legacy unencrypted direct messaging, compatible with that Windows app.
+- [Legacy source](OfflineChat-source.zip) and [legacy checksums](SHA256SUMS).
+
+The v0.2 Windows workflow previously passed its build and launch checks; those results do not establish real BLE delivery or validate Mesh v2. The older v0.1 APK and unfinished Mesh checkpoint ZIP are retained for existing links/history. Use the new Mesh2.0.0 files above for this implementation.
