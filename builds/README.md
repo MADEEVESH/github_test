@@ -4,6 +4,7 @@
 
 - [Installable Android APK](OfflineChat-Mesh-2.0.0.apk): Android 10/API29 or later; includes ARM32, ARM64 and x86_64. Development-signed release build.
 - [Mesh source ZIP](OfflineChat-Mesh-2.0.0-source.zip): extract, open the `offlinechat` subdirectory, and follow its README.
+- [Excel test workbook](OfflineChat-Mesh-v2-Test-Cases.xlsx): 20 phone tests, 13 developer checks, device register and delivery-timing sheets. All unverified cases start **Not Run**.
 - [Source revision, validation and limitations](OfflineChat-Mesh-build.txt).
 - [Mesh SHA-256 checksums](OfflineChat-Mesh-SHA256SUMS).
 
