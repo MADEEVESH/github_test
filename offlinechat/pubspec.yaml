@@ -1,0 +1,25 @@
+name: offlinechat
+description: Android BLE-only encrypted mesh messaging with a legacy Windows direct client
+publish_to: none
+version: 2.0.0+3
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_ble_central: 1.1.0
+  flutter_ble_peripheral: 3.1.0
+  shared_preferences: ^2.5.3
+  flutter_riverpod: 2.6.1
+  qr_flutter: 4.1.0
+  mobile_scanner: 7.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

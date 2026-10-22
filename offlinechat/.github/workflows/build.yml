@@ -1,0 +1,227 @@
+name: Windows release
+
+on:
+  push:
+    branches: [offlinechat-build]
+    paths:
+      - offlinechat/**
+      - .github/workflows/build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    if: github.ref == 'refs/heads/offlinechat-build'
+    runs-on: windows-2022
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out the source revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install the pinned Flutter SDK
+        run: |
+          $sdk = Join-Path $env:RUNNER_TEMP 'flutter'
+          git clone --depth 1 --branch 3.35.7 https://github.com/flutter/flutter.git $sdk
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter SDK checkout failed.' }
+          $revision = git -C $sdk rev-parse HEAD
+          if ($LASTEXITCODE -ne 0 -or $revision -ne 'adc901062556672b4138e18a4dc62a4be8f4b3c2') {
+            throw 'Flutter SDK revision does not match the pinned 3.35.7 release.'
+          }
+          (Join-Path $sdk 'bin') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "CI=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "FLUTTER_SUPPRESS_ANALYTICS=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Check Windows build tools
+        run: |
+          $output = Join-Path $env:GITHUB_WORKSPACE 'builds'
+          New-Item -ItemType Directory -Path $output -Force | Out-Null
+          $log = Join-Path $output 'OfflineChat-Windows-build.log'
+          $heading = "Source commit: $env:GITHUB_SHA`nWorkflow run: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID`nSDK initialization`n"
+          [IO.File]::WriteAllText($log, $heading, [Text.UTF8Encoding]::new($false))
+          try {
+            flutter --version *>&1 | Tee-Object -FilePath $log -Append
+            if ($LASTEXITCODE -ne 0) { throw 'Flutter SDK initialization failed.' }
+            flutter doctor -v *>&1 | Tee-Object -FilePath $log -Append
+            if ($LASTEXITCODE -ne 0) { throw 'Flutter doctor failed.' }
+          }
+          catch {
+            [IO.File]::AppendAllText($log, "`nSDK INITIALIZATION FAILED`n$($_ | Out-String)`n", [Text.UTF8Encoding]::new($false))
+            throw
+          }
+
+      - name: Analyze, test, build, and package Windows x64
+        working-directory: offlinechat
+        run: |
+          $output = Join-Path $env:GITHUB_WORKSPACE 'builds'
+          New-Item -ItemType Directory -Path $output -Force | Out-Null
+          $log = Join-Path $output 'OfflineChat-Windows-build.log'
+          $heading = "Source commit: $env:GITHUB_SHA`nWorkflow run: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID`n"
+          [IO.File]::AppendAllText($log, "`nAPPLICATION BUILD`n$heading", [Text.UTF8Encoding]::new($false))
+          try {
+            ./scripts/build_windows.ps1 -OutputDirectory $output -SmokeTest *>&1 | Tee-Object -FilePath $log -Append
+            if (!(Test-Path '../builds/OfflineChat-Windows-x64.zip')) { throw 'Windows ZIP was not produced.' }
+            $report = @"
+          OfflineChat Windows x64 release build
+          Source commit: $env:GITHUB_SHA
+          Workflow run: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
+          Flutter: 3.35.7
+          Runner: windows-2022
+          Validation: analyzer, automated tests, release compile, package checks, process launch smoke test.
+          Physical Bluetooth discovery and delivery remain untested by this hosted runner.
+          Extract the complete ZIP and run offlinechat.exe; keep its DLLs and data directory together.
+          "@
+            [IO.File]::WriteAllText((Join-Path $output 'OfflineChat-Windows-build.txt'), $report, [Text.UTF8Encoding]::new($false))
+          }
+          catch {
+            [IO.File]::AppendAllText($log, "`nBUILD FAILED`n$($_ | Out-String)`n", [Text.UTF8Encoding]::new($false))
+            throw
+          }
+
+      - name: Retain the validated Windows download
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: OfflineChat-Windows-x64
+          path: |
+            builds/OfflineChat-Windows-x64.zip
+            builds/OfflineChat-Windows-x64.zip.sha256
+            builds/OfflineChat-Windows-build.txt
+            builds/OfflineChat-Windows-build.log
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Publish the ZIP on the downloads branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          $files = @(
+            'builds/OfflineChat-Windows-x64.zip',
+            'builds/OfflineChat-Windows-x64.zip.sha256',
+            'builds/OfflineChat-Windows-build.txt',
+            'builds/OfflineChat-Windows-build.log'
+          )
+          $blobs = @{}
+          foreach ($file in $files) {
+            if (!(Test-Path -LiteralPath $file -PathType Leaf)) { throw "Missing validated download file: $file" }
+            $blobs[$file] = git hash-object -w -- $file
+            if ($LASTEXITCODE -ne 0) { throw "Could not prepare $file for publication." }
+          }
+          $builtTree = git rev-parse "${env:GITHUB_SHA}:offlinechat"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not identify the built app source tree.' }
+          # Flutter can update generated tracked files while building. Publish
+          # only the validated downloads through an independent Git index.
+          $oldIndex = $env:GIT_INDEX_FILE
+          $index = Join-Path $env:RUNNER_TEMP "offlinechat-downloads-$env:GITHUB_RUN_ID.index"
+          $env:GIT_INDEX_FILE = $index
+          try {
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              git fetch origin offlinechat-build
+              if ($LASTEXITCODE -ne 0) { throw 'Could not refresh the downloads branch.' }
+              $currentTree = git rev-parse 'origin/offlinechat-build:offlinechat'
+              if ($LASTEXITCODE -ne 0 -or $currentTree -ne $builtTree) {
+                throw 'Newer app source exists; refusing to publish a stale Windows build.'
+              }
+              Remove-Item -LiteralPath $index -Force -ErrorAction SilentlyContinue
+              git read-tree origin/offlinechat-build
+              if ($LASTEXITCODE -ne 0) { throw 'Could not read the current downloads tree.' }
+              foreach ($file in $files) {
+                git update-index --add --cacheinfo "100644,$($blobs[$file]),$file"
+                if ($LASTEXITCODE -ne 0) { throw "Could not stage only the validated download $file." }
+              }
+              $tree = git write-tree
+              if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the downloads tree.' }
+              $parent = git rev-parse origin/offlinechat-build
+              if ($LASTEXITCODE -ne 0) { throw 'Could not identify the current downloads revision.' }
+              $commit = "Publish Windows x64 build for $($env:GITHUB_SHA.Substring(0, 7))" | git commit-tree $tree -p $parent
+              if ($LASTEXITCODE -ne 0) { throw 'Could not commit Windows download files.' }
+              git push origin "${commit}:refs/heads/offlinechat-build"
+              if ($LASTEXITCODE -eq 0) { break }
+              if ($attempt -eq 3) { throw 'Could not publish Windows downloads after three attempts.' }
+              Start-Sleep -Seconds 2
+            }
+          }
+          finally {
+            $env:GIT_INDEX_FILE = $oldIndex
+            Remove-Item -LiteralPath $index -Force -ErrorAction SilentlyContinue
+          }
+          @"
+          Windows ZIP built and published: https://github.com/$env:GITHUB_REPOSITORY/tree/offlinechat-build/builds
+
+          Automated checks and the process launch smoke test passed. Physical BLE interoperability still needs device testing.
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Publish build diagnostics after a failure
+        if: failure()
+        run: |
+          $log = Join-Path $env:GITHUB_WORKSPACE 'builds/OfflineChat-Windows-build.log'
+          if (!(Test-Path -LiteralPath $log)) {
+            New-Item -ItemType Directory -Path (Split-Path $log) -Force | Out-Null
+            $message = "Source commit: $env:GITHUB_SHA`nWorkflow run: https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID`nThe workflow failed before the application build created a log.`n"
+            [IO.File]::WriteAllText($log, $message, [Text.UTF8Encoding]::new($false))
+          }
+          [IO.File]::AppendAllText($log, "`nWorkflow outcome: failure. Physical BLE validation was not performed.`n", [Text.UTF8Encoding]::new($false))
+          if (!(Test-Path '.git')) { throw 'Repository checkout is unavailable; the log cannot be published.' }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          $logBlob = git hash-object -w $log
+          if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the build log.' }
+          $builtTree = git rev-parse "${env:GITHUB_SHA}:offlinechat"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not identify the app source tree.' }
+          # A separate temporary index publishes only the log, including when a
+          # previous publication step left other generated files staged locally.
+          $oldIndex = $env:GIT_INDEX_FILE
+          $index = Join-Path $env:RUNNER_TEMP "offlinechat-log-$env:GITHUB_RUN_ID.index"
+          $env:GIT_INDEX_FILE = $index
+          try {
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              git fetch origin offlinechat-build
+              if ($LASTEXITCODE -ne 0) { throw 'Could not refresh the downloads branch.' }
+              $currentTree = git rev-parse 'origin/offlinechat-build:offlinechat'
+              if ($LASTEXITCODE -ne 0 -or $currentTree -ne $builtTree) {
+                throw 'Newer app source exists; refusing to replace its diagnostics with an older build log.'
+              }
+              Remove-Item -LiteralPath $index -Force -ErrorAction SilentlyContinue
+              git read-tree origin/offlinechat-build
+              if ($LASTEXITCODE -ne 0) { throw 'Could not read the current downloads tree.' }
+              git update-index --add --cacheinfo "100644,$logBlob,builds/OfflineChat-Windows-build.log"
+              if ($LASTEXITCODE -ne 0) { throw 'Could not stage only the build log.' }
+              $tree = git write-tree
+              if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the diagnostic tree.' }
+              $parent = git rev-parse origin/offlinechat-build
+              if ($LASTEXITCODE -ne 0) { throw 'Could not identify the current downloads revision.' }
+              $commit = "Record Windows build failure for $($env:GITHUB_SHA.Substring(0, 7))" | git commit-tree $tree -p $parent
+              if ($LASTEXITCODE -ne 0) { throw 'Could not commit the build log.' }
+              git push origin "${commit}:refs/heads/offlinechat-build"
+              if ($LASTEXITCODE -eq 0) { break }
+              if ($attempt -eq 3) { throw 'Could not publish the build log after three attempts.' }
+              Start-Sleep -Seconds 2
+            }
+          }
+          finally {
+            $env:GIT_INDEX_FILE = $oldIndex
+            Remove-Item -LiteralPath $index -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Retain the failure log
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: OfflineChat-Windows-build-log
+          path: builds/OfflineChat-Windows-build.log
+          if-no-files-found: warn
+          retention-days: 30

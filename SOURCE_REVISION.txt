@@ -1,0 +1,7 @@
+OfflineChat Mesh 2.0.0 source revision: 1d527447400e97633cb6a1b0726e3bc576989d4b
+Repository: https://github.com/MADEEVESH/github_test
+Branch: mesh-v2-wip
+Project directory: offlinechat
+Validation: 50 Flutter tests, 85 native tests, analyzer and debug/release builds passed.
+Physical Android BLE, AndroidKeyStore device tests and field background behavior are NOT verified.
+Windows remains the separate legacy v0.2 direct-chat app.

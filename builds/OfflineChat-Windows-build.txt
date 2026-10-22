@@ -1,0 +1,8 @@
+OfflineChat Windows x64 release build
+Source commit: f248528edc200033ad225ada9727cd4101e918cc
+Workflow run: https://github.com/MADEEVESH/github_test/actions/runs/39563321553
+Flutter: 3.35.7
+Runner: windows-2022
+Validation: analyzer, automated tests, release compile, package checks, process launch smoke test.
+Physical Bluetooth discovery and delivery remain untested by this hosted runner.
+Extract the complete ZIP and run offlinechat.exe; keep its DLLs and data directory together.

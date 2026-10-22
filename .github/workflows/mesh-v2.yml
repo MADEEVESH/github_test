@@ -1,0 +1,68 @@
+name: Android Mesh v2 checks
+
+on:
+  push:
+    branches: [mesh-v2-wip]
+    paths:
+      - offlinechat/**
+      - .github/workflows/mesh-v2.yml
+  pull_request:
+    paths:
+      - offlinechat/**
+      - .github/workflows/mesh-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mesh-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: offlinechat
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install pinned Flutter
+        working-directory: ${{ runner.temp }}
+        run: |
+          git clone --depth 1 --branch 3.35.7 https://github.com/flutter/flutter.git flutter
+          test "$(git -C flutter rev-parse HEAD)" = adc901062556672b4138e18a4dc62a4be8f4b3c2
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - name: Resolve and check Dart
+        run: |
+          flutter pub get --enforce-lockfile
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze --no-pub
+          flutter test --no-pub
+      - name: Native unit tests and device test compilation
+        working-directory: offlinechat/android
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebugAndroidTest --console=plain
+      - name: Build Android arm64 debug APK
+        run: flutter build apk --debug --target-platform android-arm64 --split-per-abi --no-pub
+      - name: Build and verify BLE-only release APK
+        run: |
+          flutter build apk --release --no-pub
+          python3 scripts/check_android_apk.py build/app/outputs/flutter-apk/app-release.apk
+      - name: Retain APK and test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: OfflineChat-Mesh-v2-Android-checks
+          path: |
+            offlinechat/build/app/outputs/flutter-apk/*debug.apk
+            offlinechat/build/app/outputs/flutter-apk/app-release.apk
+            offlinechat/build/app/outputs/apk/androidTest/debug/*.apk
+            offlinechat/build/app/reports/tests/testDebugUnitTest/
+            offlinechat/build/app/test-results/testDebugUnitTest/
+          if-no-files-found: warn
+          retention-days: 30
